@@ -64,6 +64,7 @@ module dbg (
   } bus_device_e;
 
   logic haltpin;
+  logic core_rst_n;
 
   localparam int NrDevices = 3;
   localparam int NrHosts = 1;
@@ -139,11 +140,15 @@ module dbg (
       else 
       counter <= counter +1;
     end
+    assign haltpin=0;
     always @* begin 
       if(counter >10000 && counter <1000000)
-        haltpin =1;
+        //haltpin =1;
+        core_rst_n =0;
       else 
-      haltpin  =0 ;
+        //haltpin  =0 ;
+        core_rst_n =1;
+
     end
   // Tie-off unused error signals
   assign device_err[Ram] = 1'b0;
@@ -269,7 +274,8 @@ module dbg (
       .alert_major_internal_o (),
       .alert_major_bus_o      (),
       .core_sleep_o           (),
-      .haltpin                (haltpin)
+      .haltpin                (haltpin),
+      .core_rst_n             (core_rst_n)
     );
 
   // SRAM block for instruction and data storage

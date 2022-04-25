@@ -103,7 +103,8 @@ module ibex_lockstep import ibex_pkg::*; #(
   input  logic                         core_busy_i,
   input  logic                         test_en_i,
   input  logic                         scan_rst_ni,
-  input logic haltpin
+  input logic                          haltpin,
+  input logic                          core_rst_n
 );
 
   localparam int unsigned LockstepOffsetW = $clog2(LockstepOffset);
@@ -312,7 +313,8 @@ module ibex_lockstep import ibex_pkg::*; #(
   ///////////////////////////////
 
   logic shadow_alert_minor, shadow_alert_major_internal, shadow_alert_major_bus;
-
+  logic combined_core_rst_n ;
+  assign combined_core_rst_n = rst_shadow_n && rst_ni;
   ibex_core #(
     .PMPEnable         ( PMPEnable         ),
     .PMPGranularity    ( PMPGranularity    ),
@@ -345,7 +347,7 @@ module ibex_lockstep import ibex_pkg::*; #(
     .DmExceptionAddr   ( DmExceptionAddr   )
   ) u_shadow_core (
     .clk_i               (clk_i),
-    .rst_ni              (rst_shadow_n),
+    .rst_ni              (combined_core_rst_n),
 
     .hart_id_i           (hart_id_i),
     .boot_addr_i         (boot_addr_i),

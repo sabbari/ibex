@@ -128,10 +128,12 @@ module ibex_top import ibex_pkg::*; #(
   output logic                         alert_major_internal_o,
   output logic                         alert_major_bus_o,
   output logic                         core_sleep_o,
+  input  logic                         haltpin,
+  input  logic                         core_rst_n,
 
   // DFT bypass controls
-  input logic                          scan_rst_ni,
-  input logic haltpin
+  input logic                          scan_rst_ni
+
 );
 
   localparam bit          Lockstep          = SecureIbex;
@@ -250,7 +252,10 @@ module ibex_top import ibex_pkg::*; #(
 
     assign unused_intg = ^{instr_rdata_intg_i, data_rdata_intg_i};
   end
-
+  /* verilator lint_off IMPERFECTSCH */
+    logic combined_core_rst_n ;
+    /* verilator lint_off IMPERFECTSCH */
+  assign combined_core_rst_n = rst_ni && core_rst_n;
   ibex_core #(
     .PMPEnable        (PMPEnable),
     .PMPGranularity   (PMPGranularity),
@@ -283,8 +288,7 @@ module ibex_top import ibex_pkg::*; #(
     .DmExceptionAddr  (DmExceptionAddr)
   ) u_ibex_core (
     .clk_i(clk),
-    .rst_ni,
-
+    .rst_ni(combined_core_rst_n),
     .hart_id_i,
     .boot_addr_i,
 
@@ -374,8 +378,7 @@ module ibex_top import ibex_pkg::*; #(
     .alert_major_bus_o     (core_alert_major_bus),
     .icache_inval_o        (icache_inval),
     .core_busy_o           (core_busy_d),
-
-    .haltpin(haltpin)
+    .haltpin               (haltpin)
   );
 
   /////////////////////////////////
@@ -942,7 +945,8 @@ module ibex_top import ibex_pkg::*; #(
       .core_busy_i            (core_busy_local),
       .test_en_i              (test_en_i),
       .scan_rst_ni            (scan_rst_ni),
-      .haltpin(haltpin)
+      .haltpin                (haltpin),
+      .core_rst_n             (core_rst_n)
     );
 
     prim_buf u_prim_buf_alert_minor (

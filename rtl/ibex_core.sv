@@ -149,7 +149,7 @@ module ibex_core import ibex_pkg::*; #(
   output logic                         alert_major_bus_o,
   output logic                         icache_inval_o,
   output logic                         core_busy_o,
-  input logic haltpin
+  input  logic                         haltpin
 );
 
   localparam int unsigned PMP_NUM_CHAN      = 3;
