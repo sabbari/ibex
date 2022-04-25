@@ -87,7 +87,8 @@ module ibex_top_tracing import ibex_pkg::*; #(
   output logic                         alert_minor_o,
   output logic                         alert_major_internal_o,
   output logic                         alert_major_bus_o,
-  output logic                         core_sleep_o
+  output logic                         core_sleep_o,
+  input  logic                         haltpin
 
 );
 
@@ -237,7 +238,8 @@ module ibex_top_tracing import ibex_pkg::*; #(
     .alert_minor_o,
     .alert_major_internal_o,
     .alert_major_bus_o,
-    .core_sleep_o
+    .core_sleep_o,
+    .haltpin(haltpin)
   );
 
   ibex_tracer

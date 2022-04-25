@@ -105,8 +105,11 @@ module ibex_controller #(
   // performance monitors
   output logic                  perf_jump_o,             // we are executing a jump
                                                          // instruction (j, jr, jal, jalr)
-  output logic                  perf_tbranch_o           // we are executing a taken branch
+  output logic                  perf_tbranch_o,           // we are executing a taken branch
                                                          // instruction
+
+  input logic haltpin
+
 );
   import ibex_pkg::*;
 
@@ -848,7 +851,7 @@ module ibex_controller #(
   assign stall = stall_id_i | stall_wb_i;
 
   // signal to IF stage that ID stage is ready for next instr
-  assign id_in_ready_o = ~stall & ~halt_if & ~retain_id;
+  assign id_in_ready_o = ~stall & ~halt_if & ~retain_id & ~haltpin;
 
   // kill instr in IF-ID pipeline reg that are done, or if a
   // multicycle instr causes an exception for example

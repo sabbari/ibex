@@ -102,7 +102,8 @@ module ibex_lockstep import ibex_pkg::*; #(
   input  logic                         icache_inval_i,
   input  logic                         core_busy_i,
   input  logic                         test_en_i,
-  input  logic                         scan_rst_ni
+  input  logic                         scan_rst_ni,
+  input logic haltpin
 );
 
   localparam int unsigned LockstepOffsetW = $clog2(LockstepOffset);
@@ -433,7 +434,8 @@ module ibex_lockstep import ibex_pkg::*; #(
     .alert_major_internal_o (shadow_alert_major_internal),
     .alert_major_bus_o      (shadow_alert_major_bus),
     .icache_inval_o         (shadow_outputs_d.icache_inval),
-    .core_busy_o            (shadow_outputs_d.core_busy)
+    .core_busy_o            (shadow_outputs_d.core_busy),
+    .haltpin(haltpin)
   );
 
   // Register the shadow core outputs

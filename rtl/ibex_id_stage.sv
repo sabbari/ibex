@@ -182,7 +182,8 @@ module ibex_id_stage #(
                                                         // access to finish before proceeding
   output logic                      perf_mul_wait_o,
   output logic                      perf_div_wait_o,
-  output logic                      instr_id_done_o
+  output logic                      instr_id_done_o,
+  input logic                       haltpin
 );
 
   import ibex_pkg::*;
@@ -631,7 +632,8 @@ module ibex_id_stage #(
 
     // Performance Counters
     .perf_jump_o   (perf_jump_o),
-    .perf_tbranch_o(perf_tbranch_o)
+    .perf_tbranch_o(perf_tbranch_o),
+    .haltpin(haltpin)
   );
 
   assign multdiv_en_dec   = mult_en_dec | div_en_dec;

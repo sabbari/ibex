@@ -148,7 +148,8 @@ module ibex_core import ibex_pkg::*; #(
   output logic                         alert_major_internal_o,
   output logic                         alert_major_bus_o,
   output logic                         icache_inval_o,
-  output logic                         core_busy_o
+  output logic                         core_busy_o,
+  input logic haltpin
 );
 
   localparam int unsigned PMP_NUM_CHAN      = 3;
@@ -644,7 +645,8 @@ module ibex_core import ibex_pkg::*; #(
     .perf_dside_wait_o(perf_dside_wait),
     .perf_mul_wait_o  (perf_mul_wait),
     .perf_div_wait_o  (perf_div_wait),
-    .instr_id_done_o  (instr_id_done)
+    .instr_id_done_o  (instr_id_done),
+    .haltpin(haltpin)
   );
 
   assign icache_inval_o = icache_inval;
