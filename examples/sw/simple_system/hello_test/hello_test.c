@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
   pcount_enable(0);
   pcount_reset();
   pcount_enable(1);
-
+  puts("DBG \n");
   puts("Hello simple system\n");
   puthex(0xDEADBEEF);
   putchar('\n');
@@ -22,17 +22,18 @@ int main(int argc, char **argv) {
   timer_enable(2000);
 
   uint64_t last_elapsed_time = get_elapsed_time();
-
-  while (last_elapsed_time <= 4) {
+  int count=0;
+  while (last_elapsed_time <= 100) {
     uint64_t cur_time = get_elapsed_time();
     if (cur_time != last_elapsed_time) {
       last_elapsed_time = cur_time;
-
-      if (last_elapsed_time & 1) {
-        puts("Tick!\n");
-      } else {
-        puts("Tock!\n");
-      }
+      puthex(count++);
+      putchar('\n');
+      // if (last_elapsed_time & 1) {
+      //   puts("Tick!\n");
+      // } else {
+      //   puts("Tock!\n");
+      // }
     }
     asm volatile("wfi");
   }
