@@ -9,8 +9,10 @@ filesets:
     depend:
       - lowrisc:ibex:ibex_top_tracing
       - lowrisc:ibex:sim_shared
+      - pulp:riscv:debug_module
     files:
       - rtl/dbg.sv
+      - rtl/dm_top.sv
     file_type: systemVerilogSource
 
   files_verilator:

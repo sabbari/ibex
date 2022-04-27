@@ -54,20 +54,22 @@ module dbg (
   logic clk_sys = 1'b0, rst_sys_n;
 
   typedef enum logic {
-    CoreD
+    CoreD,
+    DbgHost
   } bus_host_e;
 
   typedef enum logic[1:0] {
     Ram,
     SimCtrl,
-    Timer
+    Timer,
+    DbgDev
   } bus_device_e;
 
   logic haltpin;
   logic core_rst_n;
 
-  localparam int NrDevices = 3;
-  localparam int NrHosts = 1;
+  localparam int NrDevices = 4;
+  localparam int NrHosts = 2;
 
   // interrupts
   logic timer_irq;
@@ -105,6 +107,8 @@ module dbg (
   assign cfg_device_addr_mask[SimCtrl] = ~32'h3FF; // 1 kB
   assign cfg_device_addr_base[Timer] = 32'h30000;
   assign cfg_device_addr_mask[Timer] = ~32'h3FF; // 1 kB
+  assign cfg_device_addr_base[DbgDev] = 32'h40000;
+  assign cfg_device_addr_mask[DbgDev] = ~32'hFFFF; // 1 MB
 
   // Instruction fetch signals
   logic instr_req;
@@ -114,7 +118,23 @@ module dbg (
   logic [31:0] instr_rdata;
   logic instr_err;
 
+//debug
+  logic ndmreset_req;
+  logic rst_core_n;
+  logic dm_debug_req;
+  logic dbg_slave_req;
+  logic [31:0] dbg_slave_addr;
+  logic        dbg_slave_we;
+  logic [ 3:0] dbg_slave_be;
+  logic [31:0] dbg_slave_wdata;
+  logic        dbg_slave_rvalid;
+  logic [31:0] dbg_slave_rdata;
+  logic        dbg_instr_req;
+  logic        mem_instr_req;
 
+  logic        debug_req;
+
+  
   assign instr_gnt = instr_req;
   assign instr_err = '0;
 
@@ -144,9 +164,10 @@ module dbg (
     always @* begin 
       if(counter >10000 && counter <1000000)
         //haltpin =1;
-        core_rst_n =0;
+        debug_req=1;
       else 
         //haltpin  =0 ;
+        debug_req=dm_debug_req;
         core_rst_n =1;
 
     end
@@ -204,6 +225,33 @@ module dbg (
     assign instr_rdata_intg = '0;
   end
 
+
+
+
+  assign dbg_instr_req =
+      instr_req & ((instr_addr & cfg_device_addr_mask[DbgDev]) == cfg_device_addr_base[DbgDev]);
+  assign mem_instr_req =
+      instr_req & ((instr_addr & cfg_device_addr_mask[Ram]) == cfg_device_addr_base[Ram]);      
+  assign rst_core_n=rst_sys_n & ~ndmreset_req;
+  assign dbg_slave_req         = device_req[DbgDev] | dbg_instr_req;
+  assign dbg_slave_we          = device_req[DbgDev] & device_we[DbgDev];
+  assign dbg_slave_addr        = device_req[DbgDev] ? device_addr[DbgDev] : instr_addr;
+
+  assign dbg_slave_be          = device_be[DbgDev];
+  assign dbg_slave_wdata       = device_wdata[DbgDev];
+  assign device_rvalid[DbgDev] = dbg_slave_rvalid;
+  assign device_rdata[DbgDev]  = dbg_slave_rdata;
+
+  always @(posedge clk_sys or negedge rst_sys_n) begin
+    if (!rst_sys_n) begin
+      dbg_slave_rvalid <= 1'b0;
+    end else begin
+      dbg_slave_rvalid <= device_req[DbgDev];
+    end
+  end
+
+
+
   ibex_top_tracing #(
       .SecureIbex      ( SecureIbex      ),
       .ICacheScramble  ( ICacheScramble  ),
@@ -220,11 +268,13 @@ module dbg (
       .ICacheECC       ( ICacheECC       ),
       .WritebackStage  ( WritebackStage  ),
       .BranchPredictor ( BranchPredictor ),
-      .DmHaltAddr      ( 32'h00100000    ),
-      .DmExceptionAddr ( 32'h00100000    )
+      .DbgTriggerEn(1'b1),
+      .DbgHwBreakNum(2),
+      .DmHaltAddr(32'h40000 + 32'(dm::HaltAddress)),
+      .DmExceptionAddr(32'h40000 + 32'(dm::ExceptionAddress))
     ) u_top (
       .clk_i                  (clk_sys),
-      .rst_ni                 (rst_sys_n),
+      .rst_ni                 (rst_core_n),
 
       .test_en_i              ('b0),
       .scan_rst_ni            (1'b1),
@@ -265,7 +315,7 @@ module dbg (
       .scramble_nonce_i       ('0),
       .scramble_req_o         (),
 
-      .debug_req_i            ('b0),
+      .debug_req_i            (debug_req),
       .crash_dump_o           (),
       .double_fault_seen_o    (),
 
@@ -274,8 +324,8 @@ module dbg (
       .alert_major_internal_o (),
       .alert_major_bus_o      (),
       .core_sleep_o           (),
-      .haltpin                (haltpin),
-      .core_rst_n             (core_rst_n)
+      .haltpin                ('0),
+      .core_rst_n             ('1)
     );
 
   // SRAM block for instruction and data storage
@@ -294,7 +344,7 @@ module dbg (
       .a_rvalid_o  (device_rvalid[Ram]),
       .a_rdata_o   (device_rdata[Ram]),
 
-      .b_req_i     (instr_req),
+      .b_req_i     (mem_instr_req),
       .b_we_i      (1'b0),
       .b_be_i      (4'b0),
       .b_addr_i    (instr_addr),
@@ -317,6 +367,40 @@ module dbg (
       .rvalid_o  (device_rvalid[SimCtrl]),
       .rdata_o   (device_rdata[SimCtrl])
     );
+
+  //**** DM TOP 
+
+  dm_top #(
+      .NrHarts       (1)
+    ) u_dm_top (
+      .clk_i         (clk_sys),
+      .rst_ni        (rst_sys_n),
+      .testmode_i    (1'b0),
+      .ndmreset_o    (ndmreset_req),
+      .dmactive_o    (),
+      .debug_req_o   (dm_debug_req),
+      .unavailable_i (1'b0),
+
+      // bus device with debug memory (for execution-based debug)
+      .slave_req_i       (dbg_slave_req),
+      .slave_we_i        (dbg_slave_we),
+      .slave_addr_i      (dbg_slave_addr),
+      .slave_be_i        (dbg_slave_be),
+      .slave_wdata_i     (dbg_slave_wdata),
+      .slave_rdata_o     (dbg_slave_rdata),
+
+      // bus host (for system bus accesses, SBA)
+      .master_req_o      (host_req[DbgHost]),
+      .master_add_o      (host_addr[DbgHost]),
+      .master_we_o       (host_we[DbgHost]),
+      .master_wdata_o    (host_wdata[DbgHost]),
+      .master_be_o       (host_be[DbgHost]),
+      .master_gnt_i      (host_gnt[DbgHost]),
+      .master_r_valid_i  (host_rvalid[DbgHost]),
+      .master_r_rdata_i  (host_rdata[DbgHost])
+    );
+
+
 
 
 
