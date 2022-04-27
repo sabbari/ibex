@@ -1,0 +1,3 @@
+[submodule "vendor/riscv-dbg"]
+	path = vendor/riscv-dbg
+	url = git@github.com:sabbari/riscv-dbg.git
