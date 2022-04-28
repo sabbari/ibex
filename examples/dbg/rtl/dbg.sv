@@ -162,12 +162,12 @@ module dbg (
     end
     assign haltpin=0;
     always @* begin 
-      if(counter >10000 && counter <1000000)
+      if(counter >10000 && counter <100000)
         //haltpin =1;
         debug_req=1;
       else 
         //haltpin  =0 ;
-        debug_req=dm_debug_req;
+        debug_req=0;
         core_rst_n =1;
 
     end
@@ -315,7 +315,7 @@ module dbg (
       .scramble_nonce_i       ('0),
       .scramble_req_o         (),
 
-      .debug_req_i            (debug_req),
+      .debug_req_i            (dm_debug_req),
       .crash_dump_o           (),
       .double_fault_seen_o    (),
 
@@ -397,7 +397,8 @@ module dbg (
       .master_be_o       (host_be[DbgHost]),
       .master_gnt_i      (host_gnt[DbgHost]),
       .master_r_valid_i  (host_rvalid[DbgHost]),
-      .master_r_rdata_i  (host_rdata[DbgHost])
+      .master_r_rdata_i  (host_rdata[DbgHost]),
+      .halt_req_pin_i(debug_req)
     );
 
 
