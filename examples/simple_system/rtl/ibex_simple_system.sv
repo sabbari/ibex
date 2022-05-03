@@ -49,7 +49,7 @@ module ibex_simple_system (
   parameter bit                 ICache                   = 1'b0;
   parameter bit                 ICacheECC                = 1'b0;
   parameter bit                 BranchPredictor          = 1'b0;
-  parameter                     SRAMInitFile             = "";
+  parameter                     SRAMInitFile             = "/home/fakhareddine.sabbari/work/ibex/examples/sw/simple_system/hello_test/hello_test.vmem";
 
   logic clk_sys = 1'b0, rst_sys_n;
 
@@ -252,7 +252,9 @@ module ibex_simple_system (
       .alert_minor_o          (),
       .alert_major_internal_o (),
       .alert_major_bus_o      (),
-      .core_sleep_o           ()
+      .core_sleep_o           (),
+      .haltpin            ('0),
+      .core_rst_n('1)
     );
 
   // SRAM block for instruction and data storage
