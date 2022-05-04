@@ -11,6 +11,11 @@ filesets:
       - lowrisc:ibex:sim_shared
       - pulp:riscv:debug_module
     files:
+      - /home/sabbari/TIEMPO/SubmodulesSetup/SaxonSoc/hardware/MRAM_eFLASH_256Kx78B_model_okvcs.v
+      - /home/sabbari/TIEMPO/SubmodulesSetup/Tiempo_TSysGwtWrapper/hardware/RTLSIM/TSysGwtWrapper/sources/verilog/GenTech.v
+      - /home/sabbari/TIEMPO/SubmodulesSetup/Tiempo_TSysGwtWrapper/hardware/RTLSIM/TSysGwtWrapper/sources/verilog/Ram_1wrs.v
+      - /home/sabbari/TIEMPO/SubmodulesSetup/SaxonSoc/hardware/netlist/TSysGwtWrapper.v
+      - /home/sabbari/TIEMPO/SubmodulesSetup/Tiempo_TSysGwtWrapper/hardware/RTLSIM/TSysGwtWrapper/sources/verilog/TSysGwtWrapperHardwiredConst.v
       - rtl/dbg.sv
       - rtl/dm_top.sv
     file_type: systemVerilogSource

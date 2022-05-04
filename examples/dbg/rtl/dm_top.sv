@@ -10,110 +10,6 @@
 // https://github.com/pulp-platform/riscv-dbg to match the needs of
 // the TL-UL-based lowRISC chip design.
 
-
-
-module dm_halt_manager(
-  input logic halt_pin,
-  input logic clk_i,
-  input logic rst_ni,
-//
-
-  output logic         dmi_rst_no_h, // hard reset
-  output dm::dmi_req_t dmi_req_o_h,
-  output logic         dmi_req_valid_o_h,
-  input  logic         dmi_req_ready_i_h,
-
-  input dm::dmi_resp_t dmi_resp_i_h,
-  output logic         dmi_resp_ready_o_h,
-  input  logic         dmi_resp_valid_i_h,
-
-/// input from jtag tap 
-
-  input  logic                              dmi_rst_ni,    
-  input  dm::dmi_req_t                      dmi_req_i,
-  input  logic                              dmi_req_valid_i,
-  output logic                              dmi_req_ready_o,
-  // every request needs a response one cycle later
-  output dm::dmi_resp_t                     dmi_resp_o,
-  output logic                              dmi_resp_valid_o,
-  input  logic                              dmi_resp_ready_i
-
-);
-
-
-assign  dmi_rst_no_h =  dmi_rst_ni ; 
-assign  dmi_req_o_h = dmi_req_i ;
-assign  dmi_req_valid_o_h = dmi_req_valid_i ;
-assign  dmi_req_ready_o  = dmi_req_ready_i_h ;
-assign  dmi_resp_o  =dmi_resp_i_h;
-assign  dmi_resp_ready_o_h =dmi_resp_ready_i  ;
-assign  dmi_resp_valid_o= dmi_resp_valid_i_h ;
-
-
-
-
-
-
-
-
-reg lasthalt_is_mine ;
-reg [1:0] dm_is_active;
-  always @(posedge clk_i or negedge rst_ni) begin
-    if(! rst_ni) begin 
-      lasthalt_is_mine<=0;
-      dm_is_active <=0;
-    end else begin
-    if(halt_pin && !lasthalt_is_mine) begin
-    lasthalt_is_mine<=1;
-    
-    end
-    if(!halt_pin && lasthalt_is_mine)begin
-    lasthalt_is_mine<=0;
-    end
-    if (dm_is_active==0) begin
-    dm_is_active     <=1;
-    end
-    if (dm_is_active==1) begin
-    dm_is_active     <=2;
-    end
-    end
-    
-  end 
-
-  always_latch begin
-    if (dm_is_active[0]) begin
-      dmi_req_o_h <={7'h10,2'h2,31'h0,1'h1};
-      dmi_req_valid_o_h<=1;
-      dmi_resp_ready_o_h<=1;
-    end
-    if(halt_pin && !lasthalt_is_mine && dm_is_active[1]) begin
-    dmi_req_o_h ={7'h10,2'h2,1'h1,30'h0,1'h1};
-    dmi_req_valid_o_h=1;
-    dmi_resp_ready_o_h=1;
-
-    end
-    if(!halt_pin && lasthalt_is_mine && dm_is_active[1])begin
-    //dmi_req_o_h ={7'h10,2'h2,32'h0};
-        dmi_req_o_h ={7'h10,2'h2,1'h0,1'h1,29'h0,1'h1};
-
-    dmi_req_valid_o_h=1;
-    dmi_resp_ready_o_h=1;
-    end
-  
-  end
-
-
-
-
-
-
-
-
-
-
-endmodule
-
-
 `include "prim_assert.sv"
 
 module dm_top #(
@@ -146,9 +42,7 @@ module dm_top #(
   output logic [BusWidth/8-1:0] master_be_o,
   input  logic                  master_gnt_i,
   input  logic                  master_r_valid_i,
-  input  logic [BusWidth-1:0]   master_r_rdata_i,
-
-  input  logic                  halt_req_pin_i
+  input  logic [BusWidth-1:0]   master_r_rdata_i
 );
 
   `ASSERT_INIT(paramCheckNrHarts, NrHarts > 0)
@@ -164,10 +58,6 @@ module dm_top #(
   logic [NrHarts-1:0]               resumeack;
   logic [NrHarts-1:0]               haltreq;
   logic [NrHarts-1:0]               resumereq;
-
-
-
-
   logic                             clear_resumeack;
   logic                             cmd_valid;
   dm::command_t                     cmd;
@@ -204,14 +94,6 @@ module dm_top #(
   logic dmi_rsp_valid, dmi_rsp_ready;
   logic dmi_rst_n;
 
-  dm::dmi_req_t  dmi_req_h;
-  dm::dmi_resp_t dmi_rsp_h;
-  logic dmi_req_valid_h, dmi_req_ready_h;
-  logic dmi_rsp_valid_h, dmi_rsp_ready_h;
-  logic dmi_rst_n_h;
-
-
-
   // static debug hartinfo
   localparam dm::hartinfo_t DebugHartInfo = '{
     zero1:      '0,
@@ -226,29 +108,6 @@ module dm_top #(
   end
 
   assign ndmreset_o = ndmreset;
-  
-
-
-  dm_halt_manager halt_man(
-    .halt_pin(halt_req_pin_i),
-    .clk_i(clk_i),
-    .rst_ni(rst_ni),
-    .dmi_rst_no_h(dmi_rst_n_h),
-    .dmi_req_o_h(dmi_req_h),
-    .dmi_req_valid_o_h(dmi_req_valid_h),
-    .dmi_req_ready_i_h(dmi_req_ready_h),
-    .dmi_resp_i_h(dmi_rsp_h),
-    .dmi_resp_ready_o_h(dmi_rsp_ready_h),
-    .dmi_resp_valid_i_h(dmi_rsp_valid_h),
-
-    .dmi_rst_ni(dmi_rst_n),
-    .dmi_req_i(dmi_req),
-    .dmi_req_valid_i(dmi_req_valid),
-    .dmi_req_ready_o(dmi_req_ready),
-    .dmi_resp_o(dmi_rsp),
-    .dmi_resp_ready_i(dmi_rsp_ready),
-    .dmi_resp_valid_o(dmi_rsp_valid)
-  );
 
   dm_csrs #(
     .NrHarts(NrHarts),
@@ -258,13 +117,13 @@ module dm_top #(
     .clk_i                   ( clk_i                 ),
     .rst_ni                  ( rst_ni                ),
     .testmode_i              ( testmode_i            ),
-    .dmi_rst_ni              ( dmi_rst_n_h             ),
-    .dmi_req_valid_i         ( dmi_req_valid_h         ),
-    .dmi_req_ready_o         ( dmi_req_ready_h         ),
-    .dmi_req_i               ( dmi_req_h               ),
-    .dmi_resp_valid_o        ( dmi_rsp_valid_h         ),
-    .dmi_resp_ready_i        ( dmi_rsp_ready_h         ),
-    .dmi_resp_o              ( dmi_rsp_h               ),
+    .dmi_rst_ni              ( dmi_rst_n             ),
+    .dmi_req_valid_i         ( dmi_req_valid         ),
+    .dmi_req_ready_o         ( dmi_req_ready         ),
+    .dmi_req_i               ( dmi_req               ),
+    .dmi_resp_valid_o        ( dmi_rsp_valid         ),
+    .dmi_resp_ready_i        ( dmi_rsp_ready         ),
+    .dmi_resp_o              ( dmi_rsp               ),
     .ndmreset_o              ( ndmreset              ),
     .dmactive_o              ( dmactive_o            ),
     .hartsel_o               ( hartsel               ),
@@ -347,7 +206,7 @@ module dm_top #(
     .rst_ni                  ( rst_ni                ),
     .ndmreset_i              ( ndmreset              ),
     .debug_req_o             ( debug_req_o           ),
-    .hartsel_i               ( hartsel              ),
+    .hartsel_i               ( hartsel               ),
     .haltreq_i               ( haltreq               ),
     .resumereq_i             ( resumereq             ),
     .clear_resumeack_i       ( clear_resumeack       ),
@@ -400,5 +259,3 @@ module dm_top #(
 `endif
 
 endmodule
-
-

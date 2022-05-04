@@ -52,10 +52,10 @@ module dbg (
   parameter                     SRAMInitFile             = "";
 
   logic clk_sys = 1'b0, rst_sys_n;
-
-  typedef enum logic {
+  typedef enum logic[1:0] {
     CoreD,
-    DbgHost
+    DbgHost,
+    MasterPort
   } bus_host_e;
 
   typedef enum logic[1:0] {
@@ -69,7 +69,15 @@ module dbg (
   logic core_rst_n;
 
   localparam int NrDevices = 4;
-  localparam int NrHosts = 2;
+  localparam int NrHosts = 3;
+
+
+  // usys ctrl 
+
+  logic usys_rstb      ;                  
+  logic usys_cpu_rstb  ;             
+  logic gated_clocks   ;              
+  logic usys_halt      ;             
 
   // interrupts
   logic timer_irq;
@@ -153,24 +161,24 @@ module dbg (
     end
   `endif
 
-    reg [31:0] counter ;
-    always @((posedge IO_CLK) or (negedge IO_RST_N) ) begin
-      if(~IO_RST_N)
-        counter <= 0;
-      else 
-      counter <= counter +1;
-    end
-    assign haltpin=0;
-    always @* begin 
-      if(counter >10000 && counter <100000)
-        //haltpin =1;
-        debug_req=1;
-      else 
-        //haltpin  =0 ;
-        debug_req=0;
-        core_rst_n =1;
+    // reg [31:0] counter ;
+    // always @((posedge IO_CLK) or (negedge IO_RST_N) ) begin
+    //   if(~IO_RST_N)
+    //     counter <= 0;
+    //   else 
+    //   counter <= counter +1;
+    // end
+    // assign haltpin=0;
+    // always @* begin 
+    //   if(counter >10000 && counter <100000)
+    //     //haltpin =1;
+    //     debug_req=1;
+    //   else 
+    //     //haltpin  =0 ;
+    //     debug_req=0;
+    //     core_rst_n =1;
 
-    end
+    // end
   // Tie-off unused error signals
   assign device_err[Ram] = 1'b0;
   assign device_err[SimCtrl] = 1'b0;
@@ -274,7 +282,7 @@ module dbg (
       .DmExceptionAddr(32'h40000 + 32'(dm::ExceptionAddress))
     ) u_top (
       .clk_i                  (clk_sys),
-      .rst_ni                 (rst_core_n),
+      .rst_ni                 (rst_core_n & usys_rstb),
 
       .test_en_i              ('b0),
       .scan_rst_ni            (1'b1),
@@ -324,8 +332,8 @@ module dbg (
       .alert_major_internal_o (),
       .alert_major_bus_o      (),
       .core_sleep_o           (),
-      .haltpin                ('0),
-      .core_rst_n             ('1)
+      .haltpin                (usys_halt),
+      .core_rst_n             (usys_cpu_rstb)
     );
 
   // SRAM block for instruction and data storage
@@ -397,8 +405,8 @@ module dbg (
       .master_be_o       (host_be[DbgHost]),
       .master_gnt_i      (host_gnt[DbgHost]),
       .master_r_valid_i  (host_rvalid[DbgHost]),
-      .master_r_rdata_i  (host_rdata[DbgHost]),
-      .halt_req_pin_i(debug_req)
+      .master_r_rdata_i  (host_rdata[DbgHost])
+      // .halt_req_pin_i(debug_req)
     );
 
 
@@ -422,6 +430,54 @@ module dbg (
       .timer_err_o    (device_err[Timer]),
       .timer_intr_o   (timer_irq)
     );
+reg jtag_tms,jtag_tdi,jtag_tck;
+wire jtag_tdo;
+reg [31:0] TGPI;
+wire [31:0] TGPO;
+reg               slave_port_cmd_valid            ;
+wire              slave_port_cmd_ready            ;
+reg      [31:0]   slave_port_cmd_payload_addr     ;
+reg               slave_port_cmd_payload_we       ;
+reg      [3:0]    slave_port_cmd_payload_be       ;
+reg      [31:0]   slave_port_cmd_payload_wdata    ;
+wire              slave_port_rsp_valid            ;
+wire     [31:0]   slave_port_rsp_payload_rdata    ;
+wire              slave_port_rsp_payload_err      ;
+
+TSysGwtWrapper dut(
+  .rstb    (rst_sys_n    ),
+  .eclk    (clk_sys    ),
+  .jtag_tms('0),
+  .jtag_tdi('0),
+  .jtag_tdo(jtag_tdo),
+  .jtag_tck('0),
+  .TGPO    (TGPO    ),
+  .TGPI    (TGPI    ),
+  .master_port_cmd_valid        (host_req[MasterPort]        ) ,
+  .master_port_cmd_ready        (host_gnt[MasterPort]        ) ,
+  .master_port_cmd_payload_addr (host_addr[MasterPort] ) ,
+  .master_port_cmd_payload_we   (host_we[MasterPort]   ) ,
+  .master_port_cmd_payload_be   (host_be[MasterPort]   ) ,
+  .master_port_cmd_payload_wdata(host_wdata[MasterPort]) ,
+  .master_port_rsp_valid        (host_rvalid[MasterPort]        ) ,
+  .master_port_rsp_payload_rdata(host_rdata[MasterPort]) ,
+  .master_port_rsp_payload_err  (host_err[MasterPort]  ) ,
+  .slave_port_cmd_valid         ('0         ) ,
+  .slave_port_cmd_ready         (slave_port_cmd_ready         ) ,
+  .slave_port_cmd_payload_addr  ('0  ) ,
+  .slave_port_cmd_payload_we    ('0    ) ,
+  .slave_port_cmd_payload_be    ('0    ) ,
+  .slave_port_cmd_payload_wdata ('0 ) ,
+  .slave_port_rsp_valid         (slave_port_rsp_valid         ) ,
+  .slave_port_rsp_payload_rdata (slave_port_rsp_payload_rdata ) ,
+  .slave_port_rsp_payload_err   (slave_port_rsp_payload_err   ) ,
+  .usys_rstb                    (usys_rstb),
+  .usys_cpu_rstb                (usys_cpu_rstb),
+  .gated_clocks                 (gated_clocks),
+  .usys_halt                    (usys_halt)
+
+  );
+
 
   export "DPI-C" function mhpmcounter_get;
 
