@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
   pcount_reset();
   pcount_enable(1);
   puts("DBG \n");
-  puts("USYS LOADED ME HERE :/\n");
+  puts("TSYS LOADED ME HERE :/\n");
   puthex(0xDEADBEEF);
   putchar('\n');
   puthex(0xBAADF00D);

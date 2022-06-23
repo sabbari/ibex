@@ -1,6 +1,6 @@
 # Build output
 build
-
+*.hex
 # Common editor/IDE config and temporary files
 .project
 .vscode/
